@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\BookingRequest;
 use App\Models\Ticket;
+// use App\Services\BkashService;
+use Karim007\LaravelBkashTokenize\Facade\BkashPaymentTokenize;
 
 use Illuminate\Http\Request;
 
@@ -61,17 +63,87 @@ class BookingRequestController extends Controller
 
         return back()->with('success', 'Booking request updated successfully!');
     }
-    public function payBooking($id)
+    
+
+    public function payBooking(Request $request, $id, $amount)
     {
         $bookingRequest = BookingRequest::findOrFail($id);
         
-        
-        $bookingRequest->update([
-            'payment_status' => 'paid',
-            'status' => 'approved',
-        ]);
-
-        return back()->with('success', 'Payment successful!');
+        try {
+            $invoiceId = 'BOOKING-'.$id.'-'.time();
+            
+            // Prepare payment data as an array
+            $paymentData = [
+                'amount' => (string)$amount, // Must be string
+                'merchantInvoiceNumber' => $invoiceId,
+                'callbackURL' => route('bkash.callback', ['id' => $id]),
+                'intent' => 'sale',
+                'currency' => 'BDT',
+                'mode' => '0011', // Tokenized payment mode
+                'payerReference' => $invoiceId
+            ];
+    
+            \Log::debug('Payment Request Data', $paymentData);
+    
+            // JSON encode the data before passing to cPayment
+            $jsonData = json_encode($paymentData);
+            
+            // Pass the JSON encoded data
+            $response = BkashPaymentTokenize::cPayment($jsonData);
+    
+            \Log::debug('bKash API Response', (array)$response);
+    
+            if (!isset($response['paymentID'])) {
+                $error = $response['statusMessage'] ?? json_encode($response);
+                throw new \Exception("Payment failed: $error");
+            }
+    
+            // Store session data
+            session([
+                'bkash_payment_id' => $response['paymentID'],
+                'booking_id' => $id,
+                'amount' => $amount,
+                'invoice_id' => $invoiceId,
+            ]);
+    
+            return redirect($response['bkashURL']);
+    
+        } catch (\Exception $e) {
+            \Log::error('Payment Error', [
+                'booking_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return back()->with('error', 'Payment failed. Please try again later.');
+        }
+    }
+    
+    public function bkashCallback(Request $request, $id)
+    {
+        try {
+            $paymentID = session('bkash_payment_id');
+            
+            // Use the package's executePayment method
+            $response = BkashPaymentTokenize::executePayment($paymentID);
+            
+            if ($response['statusCode'] === '0000') {
+                // Payment successful
+                BookingRequest::find($id)->update([
+                    'payment_status' => 'paid',
+                    'transaction_id' => $paymentID,
+                    'status' => 'approved'
+                ]);
+                
+                return redirect()->route('dashboard', $id)
+                    ->with('success', 'Payment completed successfully!');
+            }
+            
+            throw new \Exception($response['statusMessage'] ?? 'Payment failed');
+            
+        } catch (\Exception $e) {
+            return redirect()->route('dashboard', $id)
+                ->with('error', 'Payment failed: '.$e->getMessage());
+        }
     }
 
     public function cancelBooking($id)

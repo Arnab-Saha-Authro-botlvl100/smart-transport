@@ -7,6 +7,9 @@ use App\Http\Controllers\Admin\RouteController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\BusLocationController;
 use App\Http\Controllers\BookingRequestController;
+use App\Http\Controllers\FeedbackController;
+use App\Http\Controllers\BkashTokenizePaymentController;
+use Karim007\LaravelBkashTokenize\Facade\BkashPaymentTokenize;
 
 use App\Http\Controllers\PassengerController;
 use App\Http\Controllers\AdminController;
@@ -22,12 +25,36 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [PassengerController::class, 'index'])->name('dashboard');
     Route::post('/passenger/tickets/booking', [BookingRequestController::class, 'store'])->name('passenger.tickets.booking');
     Route::get('/passengers/buses/{bus}/seats', [TicketController::class, 'getAvailableSeatsForPassenger']);
-    Route::post('/pay-booking/{id}', [BookingRequestController::class, 'payBooking'])->name('payBooking');
     Route::delete('/booking/cancel/{id}', [BookingRequestController::class, 'cancelBooking'])->name('cancelBooking');
     
     Route::get('/get-buses-for-map', [PassengerController::class, 'getBusesForMap'])->name('get.buses.for.map');
+    // routes/web.php
+    Route::post('/pay-booking/{id}/{amount}', [BookingRequestController::class, 'payBooking'])
+    ->name('payBooking');
+
+    Route::get('/bkash/callback/{id}', [BookingRequestController::class, 'bkashCallback'])
+    ->name('bkash.callback');
+
+    Route::post('/feedback/{booking?}', [FeedbackController::class, 'store'])
+    ->name('feedback.submit');
+
 });
 
+//search payment
+Route::get('/bkash/search/{trxID}', [App\Http\Controllers\BkashTokenizePaymentController::class,'searchTnx'])->name('bkash-serach');
+
+Route::get('/debug-bkash-token', function() {
+    try {
+        $token = BkashPaymentTokenize::getToken();
+        return response()->json([
+            'token' => substr($token, 0, 20).'...',
+            'length' => strlen($token),
+            'time' => now()->toDateTimeString()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json(['error' => $e->getMessage()], 500);
+    }
+});
 use App\Http\Controllers\DriverController;
 
 // Driver Dashboard

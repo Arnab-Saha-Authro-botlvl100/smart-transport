@@ -25,7 +25,8 @@ class PassengerController extends Controller
         $booking_requests = BookingRequest::where('passenger_id', auth()->id())
             ->where('status', '!=', 'rejected')
             ->join('buses', 'booking_requests.bus_id', '=', 'buses.id')
-            ->select('booking_requests.*', 'buses.bus_number')
+            ->leftJoin('feedbacks', 'booking_requests.feedback_id', '=', 'feedbacks.id') // Changed to leftJoin and fixed join condition
+            ->select('booking_requests.*', 'buses.bus_number', 'feedbacks.rating as feedback_rating') // 
             ->when($search, function($query) use ($search) {
                 return $query->where('buses.bus_number', 'like', "%$search%");
             })

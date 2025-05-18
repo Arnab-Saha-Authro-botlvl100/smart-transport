@@ -31,4 +31,23 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    // 'bkash' => [
+    //     'sandbox' => env('BKASH_SANDBOX', true),
+    //     'app_key' => env('BKASH_APP_KEY'),
+    //     'app_secret' => env('BKASH_APP_SECRET'),
+    //     'username' => env('BKASH_USERNAME'),
+    //     'password' => env('BKASH_PASSWORD'),
+    //     'callback_url' => env('BKASH_CALLBACK_URL'),
+    // ],
+    'bkash' => [
+        'sandbox' => env('BKASH_SANDBOX', false), // Changed default to false for production
+        'app_key' => env('BKASH_APP_KEY'),
+        'app_secret' => env('BKASH_APP_SECRET'),
+        'username' => env('BKASH_USERNAME'),
+        'password' => env('BKASH_PASSWORD'),
+        'callback_url' => env('BKASH_CALLBACK_URL'),
+        'timeout' => 30, // Added timeout
+        'aws_region' => 'ap-southeast-1', // Must match bKash's region
+        'service_name' => 'execute-api', // Critical for SigV4
+    ],
 ];

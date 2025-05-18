@@ -28,4 +28,9 @@ class BookingRequest extends Model
     {
         return $this->belongsTo(User::class, 'passenger_id');
     }
+    public function feedback()
+    {
+        return $this->hasOne(Feedback::class, 'booking_id');
+    }
+    
 }
